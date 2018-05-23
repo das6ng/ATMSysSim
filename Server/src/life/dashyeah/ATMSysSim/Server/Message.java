@@ -1,5 +1,7 @@
 package life.dashyeah.ATMSysSim.Server;
 
+import java.util.Scanner;
+
 public class Message {
 	private long timeStamp;
 	private String accountNumber;
@@ -9,7 +11,6 @@ public class Message {
 	private String otherAccount;
 	
 	/**
-	 * 
 	 * @param timeStamp
 	 * @param accountNumber
 	 * @param password
@@ -29,6 +30,18 @@ public class Message {
 		this.otherAccount = otherAccount;
 	}
 	
+	public static Message parse(String src){
+		Scanner scan = new Scanner(src);
+		Message msg = new Message(scan.nextLong(), scan.next(), scan.next(), scan.nextInt(),
+				scan.nextDouble(), scan.next());
+		scan.close();
+		return msg;
+	}
+	
+	public void setDeal(double deal) {
+		this.deal = deal;
+	}
+
 	public void setTimeStamp(long timeStamp) {
 		this.timeStamp = timeStamp;
 	}
@@ -67,7 +80,5 @@ public class Message {
 		}
 		
 		return str;
-		//return timeStamp+"\t"+accountNumber+"\t"+password+"\t"+
-	    //      operation+"\t"+deal+"\t"+otherAccount;
 	}
 }
