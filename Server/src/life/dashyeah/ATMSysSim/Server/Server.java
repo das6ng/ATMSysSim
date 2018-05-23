@@ -10,7 +10,7 @@ public class Server {
 	public static void main(String[] args) {
 		System.out.println("code: "+Cfg.getBankCode()+"\n"+
 				"name: "+Cfg.getBankName());
-		System.out.println("Servers: "+Cfg.getServerList().toJSONString());
+		//System.out.println("Servers: "+Cfg.getServerList().toJSONString());
 		
 		serve();
 	}
@@ -35,8 +35,6 @@ public class Server {
 				Thread t = new Thread(new Service(socket));
 				ser.add(t);
 				t.start();
-				
-				System.out.println("[MSG] a new ATM got online.");
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

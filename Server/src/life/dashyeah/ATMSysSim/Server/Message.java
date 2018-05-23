@@ -10,6 +10,15 @@ public class Message {
 	private double deal;
 	private String otherAccount;
 	
+	public static final int LOGIN_NO = 6;
+	public static final int EXIT_NO = 9;
+	public static final int DESPOSIT_NO = 1;
+	public static final int WITHDRAW_NO = 2;
+	public static final int TRANSFER_NO = 3;
+	public static final int INQUIRE_NO = 4;
+	public static final int KEEPALIVE_NO = -1;
+	public static final int ERROR_NO = 99;
+	
 	/**
 	 * @param timeStamp
 	 * @param accountNumber
@@ -41,11 +50,21 @@ public class Message {
 	public void setDeal(double deal) {
 		this.deal = deal;
 	}
-
 	public void setTimeStamp(long timeStamp) {
 		this.timeStamp = timeStamp;
 	}
-
+	public void setAccountNumber(String accountNumber) {
+		this.accountNumber = accountNumber;
+	}
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	public void setOperation(int operation) {
+		this.operation = operation;
+	}
+	public void setOtherAccount(String otherAccount) {
+		this.otherAccount = otherAccount;
+	}
 	public long getTimeStamp() {
 		return timeStamp;
 	}

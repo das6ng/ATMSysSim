@@ -22,12 +22,13 @@ public class Service implements Runnable {
 		long last = System.currentTimeMillis();
 		long current = last;
 		int hello = 0;
-		Message msgHello = new Message(System.currentTimeMillis(), "*", "*", -1, 0,"*");
-		Message msgError = new Message(System.currentTimeMillis(), "*", "*", 99, 0,"*");
+		Message msgHello = new Message(System.currentTimeMillis(), "*", "*", Message.KEEPALIVE_NO, 0,"*");
+		Message msgError = new Message(System.currentTimeMillis(), "*", "*", Message.ERROR_NO, 0,"*");
 		try {
 			BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter os = new PrintWriter(socket.getOutputStream());
 			
+			System.out.println("[MSG] a new ATM got online.");
 			while(true){
 				String data = "";
 				if(is.ready()){
@@ -43,22 +44,18 @@ public class Service implements Runnable {
 					switch(msg.getOperation()){
 					case 6: // login
 						if(login(msg)){
-							Message msgOK = new Message(System.currentTimeMillis(),msg.getAccountNumber(),"*", 0, 0,"*");
-							inquire(msgOK);
-							os.println(msgOK.toString());
-							System.out.println(msgOK.toString());
+							inquire(msg);
+							os.println(msg.toString());
 							os.flush();
 						}else{
 							msgError.setTimeStamp(System.currentTimeMillis());
 							os.println(msgError.toString());
-							System.out.println(msgError.toString());
 							os.flush();
 						}
 						break;
 					case 1: // deposit
 						if(deposit(msg)){
-							Message msgOK = new Message(System.currentTimeMillis(),msg.getAccountNumber(),"*", 1, 0,"*");
-							os.println(msgOK.toString());
+							os.println(msg.toString());
 							os.flush();
 						}else{
 							msgError.setTimeStamp(System.currentTimeMillis());
@@ -68,8 +65,7 @@ public class Service implements Runnable {
 						break;
 					case 2: // withdraw
 						if(withdraw(msg)){
-							Message msgOK = new Message(System.currentTimeMillis(),msg.getAccountNumber(),"*", 2, 0,"*");
-							os.println(msgOK.toString());
+							os.println(msg.toString());
 							os.flush();
 						}else{
 							msgError.setTimeStamp(System.currentTimeMillis());
@@ -79,8 +75,7 @@ public class Service implements Runnable {
 						break;
 					case 3: // transfer
 						if(transfer(msg)){
-							Message msgOK = new Message(System.currentTimeMillis(),msg.getAccountNumber(),"*", 3, 0,"*");
-							os.println(msgOK.toString());
+							os.println(msg.toString());
 							os.flush();
 						}else{
 							msgError.setTimeStamp(System.currentTimeMillis());
@@ -90,8 +85,7 @@ public class Service implements Runnable {
 						break;
 					case 4: //inquire
 						if(inquire(msg)){
-							Message msgOK = new Message(System.currentTimeMillis(),msg.getAccountNumber(),"*", 4, 0,"*");
-							os.println(msgOK.toString());
+							os.println(msg.toString());
 							os.flush();
 						}else{
 							msgError.setTimeStamp(System.currentTimeMillis());
@@ -101,8 +95,7 @@ public class Service implements Runnable {
 						break;
 					case 9: //logout
 						if(logout(msg)){
-							Message msgOK = new Message(System.currentTimeMillis(),msg.getAccountNumber(),"*", 9, 0,"*");
-							os.println(msgOK.toString());
+							os.println(msg.toString());
 							os.flush();
 						}else{
 							msgError.setTimeStamp(System.currentTimeMillis());
@@ -124,6 +117,9 @@ public class Service implements Runnable {
 //					os.println(msgHello.toString());
 //					os.flush();
 //					hello ++;
+//					last = current;
+//					
+//					System.out.println("^_^");
 //				}
 				
 //				if(!socket.isConnected() || hello > 3) throw new Exception("connection lost!");
@@ -133,11 +129,6 @@ public class Service implements Runnable {
 		}
 	}
 	
-	/**
-	 * 
-	 * @param msg <em><strong>Inquiring result!</strong></em>
-	 * @return
-	 */
 	private boolean inquire(Message msg) {
 		Connection conn = DBConn.getConn();
 		System.out.println("[MSG] Trying inquire: "+account);
@@ -172,9 +163,13 @@ public class Service implements Runnable {
 		inquire(tmp);
 		double balance = tmp.getDeal();
 		double deal = msg.getDeal();
+		String target = msg.getOtherAccount();
+		
 		
 		if(balance >= deal){
-			String sql = "";
+			
+		}else{
+			return false;
 		}
 		
 		try {
@@ -199,9 +194,10 @@ public class Service implements Runnable {
 		}
 		String sql = "update accounts set balance="+balance+
 				     " where sn='"+account+"'";
+		System.out.println("  sql: "+sql);
 		try {
 			conn.createStatement().executeUpdate(sql);
-			
+			msg.setDeal(balance);
 			return true;
 		} catch (SQLException e1) {
 			e1.printStackTrace();
@@ -219,9 +215,10 @@ public class Service implements Runnable {
 		balance += msg.getDeal();
 		String sql = "update accounts set balance="+balance+
 				     " where sn='"+account+"'";
+		System.out.println("  sql: "+sql);
 		try {
 			conn.createStatement().executeUpdate(sql);
-			
+			msg.setDeal(balance);
 			return true;
 		} catch (SQLException e1) {
 			e1.printStackTrace();
