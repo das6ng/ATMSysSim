@@ -23,8 +23,6 @@ public class Server {
 		
 		try {
 			server = new ServerSocket(2333);
-			//SocketAddress endpoint;
-			//server.bind(endpoint);
 		} catch (IOException e) {
 			System.err.println("[ERROR] cannot cerate ServerSocket.");
 			e.printStackTrace();
@@ -35,20 +33,18 @@ public class Server {
 		while (true) {
 			try {
 				socket = server.accept();
-				Thread t = new Thread(new Service(socket));
-				ser.add(t);
-				t.start();
-				System.out.println("  new thread: "+t.getId());
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 				continue;
 			}
-			
+			if(socket != null){
+				Thread t = new Thread(new Service(socket));
+				ser.add(t);
+				t.start();
+				System.out.println("  new thread: "+t.getId());
+				socket = null;
+			}
 		}
 	}
-}
-
-class Addr extends SocketAddress{
-	
 }
