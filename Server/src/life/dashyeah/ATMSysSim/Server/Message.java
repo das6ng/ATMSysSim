@@ -6,7 +6,7 @@ public class Message {
 	private long timeStamp;
 	private String accountNumber;
 	private String password;
-	private int operation; // 1 2 3
+	private int operation;
 	private double deal;
 	private String otherAccount;
 	
@@ -18,6 +18,7 @@ public class Message {
 	public static final int INQUIRE_NO = 4;
 	public static final int KEEPALIVE_NO = -1;
 	public static final int ERROR_NO = 99;
+	public static final int COMMIT_NO = 66;
 	
 	/**
 	 * @param timeStamp

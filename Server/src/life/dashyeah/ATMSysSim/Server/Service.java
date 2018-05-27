@@ -7,11 +7,13 @@ import java.net.Socket;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Scanner;
+
+import org.json.simple.JSONObject;
 
 public class Service implements Runnable {
 	private Socket socket;
 	private String account;
+	Message msgHello = new Message(System.currentTimeMillis(), "*", "*", Message.KEEPALIVE_NO, 0,"*");
 	
 	public Service(Socket socket){
 		this.socket = socket;
@@ -22,8 +24,6 @@ public class Service implements Runnable {
 		long last = System.currentTimeMillis();
 		long current = last;
 		int hello = 0;
-		Message msgHello = new Message(System.currentTimeMillis(), "*", "*", Message.KEEPALIVE_NO, 0,"*");
-		Message msgError = new Message(System.currentTimeMillis(), "*", "*", Message.ERROR_NO, 0,"*");
 		try {
 			BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			PrintWriter os = new PrintWriter(socket.getOutputStream());
@@ -34,199 +34,205 @@ public class Service implements Runnable {
 				if(is.ready()){
 					data = is.readLine();
 					System.out.println("[MSG] received: " + data);
-
-					Scanner scan = new Scanner(data);
-					Message msg = new Message(scan.nextLong(), scan.next(), scan.next(), scan.nextInt(),
-							scan.nextDouble(), scan.next());
-					scan.close();
-					System.out.println(" Message: " + msg.toString());
+					Message msg = Message.parse(data);
+					System.out.println("    Message: " + msg.toString());
 					
 					switch(msg.getOperation()){
-					case 6: // login
-						if(login(msg)){
-							inquire(msg);
-							os.println(msg.toString());
-							os.flush();
-						}else{
-							msgError.setTimeStamp(System.currentTimeMillis());
-							os.println(msgError.toString());
-							os.flush();
-						}
+					case Message.LOGIN_NO: // login
+						os.println(login(msg));
+						os.flush();
 						break;
-					case 1: // deposit
-						if(deposit(msg)){
-							os.println(msg.toString());
-							os.flush();
-						}else{
-							msgError.setTimeStamp(System.currentTimeMillis());
-							os.println(msgError.toString());
-							os.flush();
-						}
+					case Message.DESPOSIT_NO: // deposit
+						os.println(deposit(msg));
+						os.flush();
 						break;
-					case 2: // withdraw
-						if(withdraw(msg)){
-							os.println(msg.toString());
-							os.flush();
-						}else{
-							msgError.setTimeStamp(System.currentTimeMillis());
-							os.println(msgError.toString());
-							os.flush();
-						}
+					case Message.WITHDRAW_NO: // withdraw
+						os.println(withdraw(msg));
+						os.flush();
 						break;
-					case 3: // transfer
-						if(transfer(msg)){
-							os.println(msg.toString());
-							os.flush();
-						}else{
-							msgError.setTimeStamp(System.currentTimeMillis());
-							os.println(msgError.toString());
-							os.flush();
-						}
+					case Message.TRANSFER_NO: // transfer
+						os.println(transfer(msg));
+						os.flush();
 						break;
-					case 4: //inquire
-						if(inquire(msg)){
-							os.println(msg.toString());
-							os.flush();
-						}else{
-							msgError.setTimeStamp(System.currentTimeMillis());
-							os.println(msgError.toString());
-							os.flush();
-						}
+					case Message.INQUIRE_NO: //inquire
+						os.println(inquire(msg));
+						os.flush();
 						break;
-					case 9: //logout
-						if(logout(msg)){
-							os.println(msg.toString());
-							os.flush();
-						}else{
-							msgError.setTimeStamp(System.currentTimeMillis());
-							os.println(msgError.toString());
-							os.flush();
-						}
+					case Message.EXIT_NO: //logout
+						os.println(logout(msg));
+						os.flush();
 						break;
-					case -1: // pulse message
-						hello --;
+					case Message.KEEPALIVE_NO: // pulse message
+						if(hello>0) hello --;
 						break;
 					default:
 						System.err.println("[Warning] received wrong operation code.");
 					}
 				}
 				
-//				current = System.currentTimeMillis();
-//				if(current - last > 5000){
-//					msgHello.setTimeStamp(System.currentTimeMillis());
-//					os.println(msgHello.toString());
-//					os.flush();
-//					hello ++;
-//					last = current;
-//					
-//					System.out.println("^_^");
-//				}
-				
-//				if(!socket.isConnected() || hello > 3) throw new Exception("connection lost!");
+				current = System.currentTimeMillis();
+				if(current - last > 5000){
+					msgHello.setTimeStamp(System.currentTimeMillis());
+					os.println(msgHello.toString());
+					os.flush();
+					hello ++;
+					last = current;
+					
+					System.out.println("^_^");
+				}
+				if(hello > 3 && !is.ready()) throw new Exception("connection lost!");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	private boolean inquire(Message msg) {
+	private Message inquire(Message msg) {
+		if(!isThisServer(msg.getAccountNumber()))
+			return redirect(msg);
+		if(!checkPass(msg)) return errorMessage();
+		
 		Connection conn = DBConn.getConn();
 		System.out.println("[MSG] Trying inquire: "+account);
 		
 		String sql = "select balance from accounts where sn='"+account+"';";
 		System.out.println("  sql: "+sql);
 		
+		Message result = Message.parse(msg.toString());
+		
 		try {
 			ResultSet rs = conn.createStatement().executeQuery(sql);
 			if(rs.next()){
 				double balance = rs.getDouble("balance");
-				msg.setDeal(balance);
+				
+				result.setDeal(balance);
+				result.setTimeStamp(System.currentTimeMillis());
+				
+				conn.close();
+				return result;
+			}else{
+				
+				conn.close();
+				return errorMessage();
 			}
-			return true;
 		} catch (SQLException e1) {
 			e1.printStackTrace();
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			return errorMessage();
 		}
-		
-		try {
-			conn.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return false;
 	}
 
-	private boolean transfer(Message msg) {
-		Connection conn = DBConn.getConn();
-		System.out.println("[MSG] Trying transfer: "+account);
+	private Message withdraw(Message msg) {
+		if(!isThisServer(msg.getAccountNumber()))
+			return redirect(msg);
+		if(!checkPass(msg)) return errorMessage();
 		
-		Message tmp = new Message(0, "*", "*", 0, 0, "*");
-		inquire(tmp);
-		double balance = tmp.getDeal();
-		double deal = msg.getDeal();
-		String target = msg.getOtherAccount();
-		
-		
-		if(balance >= deal){
-			
-		}else{
-			return false;
-		}
-		
-		try {
-			conn.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return false;
-	}
-
-	private boolean withdraw(Message msg) {
-		Connection conn = DBConn.getConn();
 		System.out.println("[MSG] Trying withdraw: "+account);
 		
-		Message tmp = new Message(0, "*", "*", 0, 0, "*");
-		inquire(tmp);
-		double balance = tmp.getDeal();
+		Message result = inquire(msg);
+		double balance = result.getDeal();
 		if(balance < msg.getDeal()){
-			return false;
+			return errorMessage();
 		}else{
 			balance -= msg.getDeal();
 		}
+		
+		Connection conn = DBConn.getConn();
 		String sql = "update accounts set balance="+balance+
 				     " where sn='"+account+"'";
 		System.out.println("  sql: "+sql);
 		try {
 			conn.createStatement().executeUpdate(sql);
-			msg.setDeal(balance);
-			return true;
+			result.setDeal(balance);
+			
+			conn.close();
+			return result;
 		} catch (SQLException e1) {
 			e1.printStackTrace();
-			return false;
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			return errorMessage();
 		}
 	}
 
-	private boolean deposit(Message msg) {
+	private Message deposit(Message msg) {
+		if(!isThisServer(msg.getAccountNumber()))
+			return redirect(msg);
+		
 		Connection conn = DBConn.getConn();
 		System.out.println("[MSG] Trying deposit: "+account);
 		
-		Message tmp = new Message(0, "*", "*", 0, 0, "*");
-		inquire(tmp);
-		double balance = tmp.getDeal();
+		Message result = inquire(msg);
+		double balance = result.getDeal();
 		balance += msg.getDeal();
 		String sql = "update accounts set balance="+balance+
 				     " where sn='"+account+"'";
 		System.out.println("  sql: "+sql);
 		try {
 			conn.createStatement().executeUpdate(sql);
-			msg.setDeal(balance);
-			return true;
+			result.setDeal(balance);
+			
+			conn.close();
+			return result;
 		} catch (SQLException e1) {
 			e1.printStackTrace();
-			return false;
+			try {
+				conn.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			return errorMessage();
 		}
 	}
 
-	private boolean login(Message msg) {
+	private Message transfer(Message msg) {
+		if(!isThisServer(msg.getAccountNumber()))
+			return redirect(msg);
+		if(!checkPass(msg)) return errorMessage();
+		
+		System.out.println("[MSG] Trying transfer: "+account);
+		
+		Message result = withdraw(msg);
+		if (result.getOperation() != Message.ERROR_NO) {
+			result.setAccountNumber(msg.getOtherAccount());
+			result.setDeal(msg.getDeal());
+			result.setOperation(Message.DESPOSIT_NO);
+			if (isThisServer(msg.getOtherAccount())) {
+				result = deposit(result);
+				
+				return inquire(msg);
+			}else{
+				return redirect(result);
+			}
+		} else {
+			return errorMessage();
+		}
+	}
+
+	private Message login(Message msg) {
+		if(!isThisServer(msg.getAccountNumber()))
+			return redirect(msg);
+		if(checkPass(msg)){
+			msg.setTimeStamp(System.currentTimeMillis());
+			return msg;
+		}else{
+			return errorMessage();
+		}
+	}
+
+	private Message logout(Message msg) {
+		account = "";
+		return msg;
+	}
+	
+	private boolean checkPass(Message msg){
 		Connection conn = DBConn.getConn();
 		System.out.println("[MSG] Trying login: ");
 		
@@ -241,6 +247,7 @@ public class Service implements Runnable {
 					System.out.println("  Login Accepted.");
 					
 					conn.close();
+					msg.setTimeStamp(System.currentTimeMillis());
 					return true;
 				}else{
 					System.out.println("  Login Denied.");
@@ -257,10 +264,60 @@ public class Service implements Runnable {
 		}
 		return false;
 	}
-
-	private boolean logout(Message msg) {
-		account = "";
-		return true;
+	
+	private boolean isThisServer(String sn){
+		String targetBank = sn.substring(0, 3);
+		String targetBranch = sn.substring(4,7);
+		
+		if(targetBank.equals(Cfg.getBankCode()) &&
+		   targetBranch.equals(Cfg.getBranchCode()))
+			return true;
+		else
+			return false;
+	}
+	
+	private Message redirect(Message msg){
+		JSONObject servers = Cfg.getServerList();
+		String sn = msg.getAccountNumber();
+		String targetBank = sn.substring(0, 3);
+		String targetBranch = sn.substring(4,7);
+		String addr = (String) ((JSONObject)servers.get(targetBank)).get(targetBranch);
+		try {
+			@SuppressWarnings("resource")
+			Socket socket = new Socket(addr, 2333);
+			BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			PrintWriter os = new PrintWriter(socket.getOutputStream());
+			os.println(msg.toString());
+			os.flush();
+			
+			long t = System.currentTimeMillis();
+			while(true){
+				if(is.ready()){
+					Message result = Message.parse(is.readLine());
+					if(msg.getOperation() == result.getOperation() || 
+					   result.getOperation() == Message.ERROR_NO){
+						
+						is.close();
+						os.close();
+						socket.close();
+						return result;
+					}else if(result.getOperation() == Message.KEEPALIVE_NO){
+						result.setTimeStamp(System.currentTimeMillis());
+						os.println(result.toString());
+						os.flush();
+					}
+				}
+				if(System.currentTimeMillis() - t > 10000)
+					break;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return errorMessage();
+	}
+	
+	private Message errorMessage(){
+		return new Message(System.currentTimeMillis(), "*", "*", Message.ERROR_NO, 0,"*");
 	}
 
 }
