@@ -35,6 +35,7 @@ public class Server {
 				Thread t = new Thread(new Service(socket));
 				ser.add(t);
 				t.start();
+				System.out.println("  new thread: "+t.getId());
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

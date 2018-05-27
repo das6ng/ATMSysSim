@@ -39,27 +39,27 @@ public class Service implements Runnable {
 					
 					switch(msg.getOperation()){
 					case Message.LOGIN_NO: // login
-						os.println(login(msg));
+						os.println(login(msg).toString());
 						os.flush();
 						break;
 					case Message.DESPOSIT_NO: // deposit
-						os.println(deposit(msg));
+						os.println(deposit(msg).toString());
 						os.flush();
 						break;
 					case Message.WITHDRAW_NO: // withdraw
-						os.println(withdraw(msg));
+						os.println(withdraw(msg).toString());
 						os.flush();
 						break;
 					case Message.TRANSFER_NO: // transfer
-						os.println(transfer(msg));
+						os.println(transfer(msg).toString());
 						os.flush();
 						break;
 					case Message.INQUIRE_NO: //inquire
-						os.println(inquire(msg));
+						os.println(inquire(msg).toString());
 						os.flush();
 						break;
 					case Message.EXIT_NO: //logout
-						os.println(logout(msg));
+						os.println(logout(msg).toString());
 						os.flush();
 						break;
 					case Message.KEEPALIVE_NO: // pulse message
@@ -70,17 +70,17 @@ public class Service implements Runnable {
 					}
 				}
 				
-				current = System.currentTimeMillis();
-				if(current - last > 5000){
-					msgHello.setTimeStamp(System.currentTimeMillis());
-					os.println(msgHello.toString());
-					os.flush();
-					hello ++;
-					last = current;
-					
-					System.out.println("^_^");
-				}
-				if(hello > 3 && !is.ready()) throw new Exception("connection lost!");
+//				current = System.currentTimeMillis();
+//				if(current - last > 5000){
+//					msgHello.setTimeStamp(System.currentTimeMillis());
+//					os.println(msgHello.toString());
+//					os.flush();
+//					hello ++;
+//					last = current;
+//					
+//					System.out.println("^_^");
+//				}
+//				if(hello > 3 && !is.ready()) throw new Exception("connection lost!");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -279,8 +279,9 @@ public class Service implements Runnable {
 	private Message redirect(Message msg){
 		JSONObject servers = Cfg.getServerList();
 		String sn = msg.getAccountNumber();
-		String targetBank = sn.substring(0, 3);
-		String targetBranch = sn.substring(4,7);
+		String targetBank = sn.substring(0, 4);
+		String targetBranch = sn.substring(4,8);
+		System.out.println("[MSG] targetBank: "+targetBank+" targetBranch: "+targetBranch);
 		String addr = (String) ((JSONObject)servers.get(targetBank)).get(targetBranch);
 		try {
 			@SuppressWarnings("resource")
