@@ -15,6 +15,10 @@ public final class Cfg {
 	private static String branchName;
 	private static String relayAddr;
 	
+	private static String databaseUrl;
+	private static String databaseUser;
+	private static String databasePass;
+	
 	private static JSONObject serverList;
 
 	static{
@@ -30,6 +34,12 @@ public final class Cfg {
 			branchCode = (String) obj.get("branchCode");
 			branchName = (String) obj.get("branchName");
 			relayAddr = (String) obj.get("relay");
+			
+			databaseUrl = (String) obj.get("databaseUrl");
+			databaseUser = (String) obj.get("databaseUser");
+			databasePass = (String) obj.get("databasePass");
+			
+			//System.out.println(" cfg: "+obj.toJSONString());
 			
 			r.close();
 			r = new FileReader("./cfg/server_list.json");
@@ -66,4 +76,17 @@ public final class Cfg {
 	public static String getRelayAddr() {
 		return relayAddr;
 	}
+
+	public static String getDatabaseUrl() {
+		return databaseUrl;
+	}
+
+	public static String getDatabaseUser() {
+		return databaseUser;
+	}
+
+	public static String getDatabasePass() {
+		return databasePass;
+	}
+	
 }

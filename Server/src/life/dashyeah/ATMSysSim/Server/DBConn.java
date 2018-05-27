@@ -12,7 +12,10 @@ public class DBConn {
 			//load driver
 			Class.forName("com.mysql.jdbc.Driver");
 			
-		    conn = DriverManager.getConnection("jdbc:mysql://localhost/atmsys", "root", "2269");
+		    conn = DriverManager.getConnection(
+		    		Cfg.getDatabaseUrl(), 
+		    		Cfg.getDatabaseUser(), 
+		    		Cfg.getDatabasePass());
 		    System.out.println("[MSG] DB connection got.");
 		    
 		    return conn;

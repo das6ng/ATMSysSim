@@ -3,5 +3,9 @@
     "name":"人民银行",
     "branchCode":"0001",
     "branchName":"首都支行",
-    "relay":"192.168.1.100"
+    "relay":"192.168.1.100",
+    
+    "databaseUrl":"jdbc:mysql://localhost/atmsys",
+    "databaseUser":"root",
+    "databasePass":"2269"
 }

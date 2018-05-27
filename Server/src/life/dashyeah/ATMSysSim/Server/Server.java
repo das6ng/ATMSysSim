@@ -3,6 +3,7 @@ package life.dashyeah.ATMSysSim.Server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.ArrayList;
 
 public class Server {
@@ -22,6 +23,8 @@ public class Server {
 		
 		try {
 			server = new ServerSocket(2333);
+			//SocketAddress endpoint;
+			//server.bind(endpoint);
 		} catch (IOException e) {
 			System.err.println("[ERROR] cannot cerate ServerSocket.");
 			e.printStackTrace();
@@ -44,5 +47,8 @@ public class Server {
 			
 		}
 	}
+}
+
+class Addr extends SocketAddress{
 	
 }
