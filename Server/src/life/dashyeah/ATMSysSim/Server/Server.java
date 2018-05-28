@@ -3,7 +3,6 @@ package life.dashyeah.ATMSysSim.Server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.util.ArrayList;
 
 public class Server {
@@ -22,7 +21,7 @@ public class Server {
 		ArrayList<Thread> ser = new ArrayList<>();
 		
 		try {
-			server = new ServerSocket(2333);
+			server = new ServerSocket(Integer.parseInt(Cfg.getServicePort()));
 		} catch (IOException e) {
 			System.err.println("[ERROR] cannot cerate ServerSocket.");
 			e.printStackTrace();

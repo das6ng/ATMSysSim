@@ -1,0 +1,8 @@
+{
+    "atmsn":"110"
+	"bank":"0001",
+    "name":"人民银行",
+    "branchCode":"0001",
+    "branchName":"首都支行",
+    "server":"127.0.0.1"
+}

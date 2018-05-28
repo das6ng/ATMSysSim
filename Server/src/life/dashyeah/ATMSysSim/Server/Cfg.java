@@ -15,6 +15,8 @@ public final class Cfg {
 	private static String branchName;
 	private static String relayAddr;
 	
+	private static String servicePort;
+	
 	private static String databaseUrl;
 	private static String databaseUser;
 	private static String databasePass;
@@ -34,6 +36,8 @@ public final class Cfg {
 			branchCode = (String) obj.get("branchCode");
 			branchName = (String) obj.get("branchName");
 			relayAddr = (String) obj.get("relay");
+			
+			servicePort = (String) obj.get("servicePort");
 			
 			databaseUrl = (String) obj.get("databaseUrl");
 			databaseUser = (String) obj.get("databaseUser");
@@ -87,6 +91,10 @@ public final class Cfg {
 
 	public static String getDatabasePass() {
 		return databasePass;
+	}
+
+	public static String getServicePort() {
+		return servicePort;
 	}
 	
 }

@@ -1,6 +1,7 @@
 package life.dashyeah.ATMSysSim.Server;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -13,6 +14,9 @@ import org.json.simple.JSONObject;
 public class Service implements Runnable {
 	private Socket socket;
 	private String account;
+	private BufferedReader is;
+	private PrintWriter os;
+	private final long timeout = 60000;
 	Message msgHello = new Message(System.currentTimeMillis(), "*", "*", Message.KEEPALIVE_NO, 0,"*");
 	
 	public Service(Socket socket){
@@ -25,8 +29,8 @@ public class Service implements Runnable {
 		long current = last;
 		int hello = 0;
 		try {
-			BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			PrintWriter os = new PrintWriter(socket.getOutputStream());
+			is = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			os = new PrintWriter(socket.getOutputStream());
 			
 			System.out.println("[MSG] a new ATM got online.");
 			while(true){
@@ -71,7 +75,7 @@ public class Service implements Runnable {
 				}
 				
 //				current = System.currentTimeMillis();
-//				if(current - last > 5000){
+//				if(current - last > timeout){
 //					msgHello.setTimeStamp(System.currentTimeMillis());
 //					os.println(msgHello.toString());
 //					os.flush();
@@ -138,9 +142,29 @@ public class Service implements Runnable {
 		if(balance < msg.getDeal()){
 			return errorMessage();
 		}else{
+//			long current = System.currentTimeMillis();
+//			while(true){
+//				try {
+//					if(is.ready()){
+//						Message tmp = Message.parse(is.readLine());
+//						System.out.println("  withdraw: "+tmp.toString());
+//						if(tmp.getOperation() == Message.COMMIT_NO) break;
+//					}
+//				} catch (IOException e) {
+//					e.printStackTrace();
+//					return errorMessage();
+//				}
+//				if(System.currentTimeMillis() - current > timeout) return errorMessage();
+//			}
 			balance -= msg.getDeal();
 		}
 		
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
 		Connection conn = DBConn.getConn();
 		String sql = "update accounts set balance="+balance+
 				     " where sn='"+account+"'";
@@ -199,17 +223,51 @@ public class Service implements Runnable {
 		
 		System.out.println("[MSG] Trying transfer: "+account);
 		
-		Message result = withdraw(msg);
+		Message result = inquire(msg);
+		double expectedBalance = result.getDeal() - msg.getDeal();
 		if (result.getOperation() != Message.ERROR_NO) {
+			if(result.getDeal() < msg.getDeal())
+				return errorMessage();
+			
 			result.setAccountNumber(msg.getOtherAccount());
 			result.setDeal(msg.getDeal());
 			result.setOperation(Message.DESPOSIT_NO);
 			if (isThisServer(msg.getOtherAccount())) {
 				result = deposit(result);
-				
-				return inquire(msg);
 			}else{
-				return redirect(result);
+				result = redirect(result);
+			}
+			if(result.getOperation() == Message.DESPOSIT_NO){
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				result = withdraw(msg);
+				return result;
+//				Connection conn = DBConn.getConn();
+//				String sql = "update accounts set balance="+expectedBalance+
+//						     " where sn='"+account+"'";
+//				System.out.println("  sql: "+sql);
+//				try {
+//					conn.createStatement().executeUpdate(sql);
+//					conn.close();
+//					
+//					msg.setDeal(inquire(msg).getDeal());
+//					msg.setTimeStamp(System.currentTimeMillis());
+//					return msg;
+//				} catch (SQLException e1) {
+//					e1.printStackTrace();
+//					try {
+//						conn.close();
+//					} catch (SQLException e) {
+//						e.printStackTrace();
+//					}
+//					return errorMessage();
+//				}
+			}else{
+				return errorMessage();
 			}
 		} else {
 			return errorMessage();
@@ -219,8 +277,9 @@ public class Service implements Runnable {
 	private Message login(Message msg) {
 		if(!isThisServer(msg.getAccountNumber()))
 			return redirect(msg);
+		
 		if(checkPass(msg)){
-			msg.setTimeStamp(System.currentTimeMillis());
+			msg = inquire(msg);
 			return msg;
 		}else{
 			return errorMessage();
@@ -266,9 +325,11 @@ public class Service implements Runnable {
 	}
 	
 	private boolean isThisServer(String sn){
-		String targetBank = sn.substring(0, 3);
-		String targetBranch = sn.substring(4,7);
+		String targetBank = sn.substring(0, 4);
+		String targetBranch = sn.substring(4,8);
 		
+		System.out.println("  this:"+Cfg.getBankCode()+Cfg.getBranchCode()+
+				           "  target:"+targetBank+targetBranch);
 		if(targetBank.equals(Cfg.getBankCode()) &&
 		   targetBranch.equals(Cfg.getBranchCode()))
 			return true;
@@ -308,7 +369,7 @@ public class Service implements Runnable {
 						os.flush();
 					}
 				}
-				if(System.currentTimeMillis() - t > 10000)
+				if(System.currentTimeMillis() - t > timeout)
 					break;
 			}
 		} catch (Exception e) {

@@ -15,7 +15,8 @@ public class DBConn {
 		    conn = DriverManager.getConnection(
 		    		Cfg.getDatabaseUrl(), 
 		    		Cfg.getDatabaseUser(), 
-		    		Cfg.getDatabasePass());
+		    		Cfg.getDatabasePass()
+		    		);
 		    System.out.println("[MSG] DB connection got.");
 		    
 		    return conn;
