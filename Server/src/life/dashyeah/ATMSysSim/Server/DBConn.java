@@ -17,7 +17,7 @@ public class DBConn {
 		    		Cfg.getDatabaseUser(), 
 		    		Cfg.getDatabasePass()
 		    		);
-		    System.out.println("[MSG] DB connection got.");
+		    //System.out.println("[MSG] DB connection got.");
 		    
 		    return conn;
 		} catch (SQLException ex) {

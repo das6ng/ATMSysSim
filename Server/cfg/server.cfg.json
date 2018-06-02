@@ -7,7 +7,7 @@
     
     "servicePort":"2333"
     
-    "databaseUrl":"jdbc:mysql://localhost/atmsys",
+    "databaseUrl":"jdbc:mysql://localhost/atmsys?useSSL=false",
     "databaseUser":"root",
     "databasePass":"2269"
 }

@@ -1,13 +1,13 @@
 package life.dashyeah.ATMSysSim.Server;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.regex.Pattern;
 
 import org.json.simple.JSONObject;
 
@@ -39,7 +39,7 @@ public class Service implements Runnable {
 					data = is.readLine();
 					System.out.println("[MSG] received: " + data);
 					Message msg = Message.parse(data);
-					System.out.println("    Message: " + msg.toString());
+					System.out.println("       Message: " + msg.toString());
 					
 					switch(msg.getOperation()){
 					case Message.LOGIN_NO: // login
@@ -71,6 +71,8 @@ public class Service implements Runnable {
 						break;
 					default:
 						System.err.println("[Warning] received wrong operation code.");
+						os.println(errorMessage().toString());
+						os.flush();
 					}
 				}
 				
@@ -92,6 +94,7 @@ public class Service implements Runnable {
 	}
 	
 	private Message inquire(Message msg) {
+		if(!isLegal(msg.getAccountNumber())) return errorMessage();
 		if(!isThisServer(msg.getAccountNumber()))
 			return redirect(msg);
 		if(!checkPass(msg)) return errorMessage();
@@ -100,7 +103,7 @@ public class Service implements Runnable {
 		System.out.println("[MSG] Trying inquire: "+account);
 		
 		String sql = "select balance from accounts where sn='"+account+"';";
-		System.out.println("  sql: "+sql);
+		//System.out.println("  sql: "+sql);
 		
 		Message result = Message.parse(msg.toString());
 		
@@ -131,11 +134,12 @@ public class Service implements Runnable {
 	}
 
 	private Message withdraw(Message msg) {
+		if(!isLegal(msg.getAccountNumber())) return errorMessage();
 		if(!isThisServer(msg.getAccountNumber()))
 			return redirect(msg);
 		if(!checkPass(msg)) return errorMessage();
 		
-		System.out.println("[MSG] Trying withdraw: "+account);
+		System.out.println("[MSG] Trying withdraw: "+account+" гд"+msg.getDeal());
 		
 		Message result = inquire(msg);
 		double balance = result.getDeal();
@@ -168,7 +172,7 @@ public class Service implements Runnable {
 		Connection conn = DBConn.getConn();
 		String sql = "update accounts set balance="+balance+
 				     " where sn='"+account+"'";
-		System.out.println("  sql: "+sql);
+		//System.out.println("  sql: "+sql);
 		try {
 			conn.createStatement().executeUpdate(sql);
 			result.setDeal(balance);
@@ -187,11 +191,12 @@ public class Service implements Runnable {
 	}
 
 	private Message deposit(Message msg) {
+		if(!isLegal(msg.getAccountNumber())) return errorMessage();
 		if(!isThisServer(msg.getAccountNumber()))
 			return redirect(msg);
 		
 		Connection conn = DBConn.getConn();
-		System.out.println("[MSG] Trying deposit: "+account);
+		System.out.println("[MSG] Trying deposit: "+account+" гд"+msg.getDeal());
 		
 		Message result = inquire(msg);
 		double balance = result.getDeal();
@@ -217,14 +222,17 @@ public class Service implements Runnable {
 	}
 
 	private Message transfer(Message msg) {
+		if(!isLegal(msg.getAccountNumber())) return errorMessage();
+		if(!isLegal(msg.getOtherAccount())) return errorMessage();
 		if(!isThisServer(msg.getAccountNumber()))
 			return redirect(msg);
 		if(!checkPass(msg)) return errorMessage();
 		
-		System.out.println("[MSG] Trying transfer: "+account);
+		System.out.println("[MSG] Trying transfer from:"+msg.getAccountNumber()+
+				           " to:"+msg.getOtherAccount()+
+				          " гд"+msg.getDeal());
 		
 		Message result = inquire(msg);
-		double expectedBalance = result.getDeal() - msg.getDeal();
 		if (result.getOperation() != Message.ERROR_NO) {
 			if(result.getDeal() < msg.getDeal())
 				return errorMessage();
@@ -246,26 +254,6 @@ public class Service implements Runnable {
 				}
 				result = withdraw(msg);
 				return result;
-//				Connection conn = DBConn.getConn();
-//				String sql = "update accounts set balance="+expectedBalance+
-//						     " where sn='"+account+"'";
-//				System.out.println("  sql: "+sql);
-//				try {
-//					conn.createStatement().executeUpdate(sql);
-//					conn.close();
-//					
-//					msg.setDeal(inquire(msg).getDeal());
-//					msg.setTimeStamp(System.currentTimeMillis());
-//					return msg;
-//				} catch (SQLException e1) {
-//					e1.printStackTrace();
-//					try {
-//						conn.close();
-//					} catch (SQLException e) {
-//						e.printStackTrace();
-//					}
-//					return errorMessage();
-//				}
 			}else{
 				return errorMessage();
 			}
@@ -275,11 +263,13 @@ public class Service implements Runnable {
 	}
 
 	private Message login(Message msg) {
+		if(!isLegal(msg.getAccountNumber())) return errorMessage();
 		if(!isThisServer(msg.getAccountNumber()))
 			return redirect(msg);
 		
 		if(checkPass(msg)){
 			msg = inquire(msg);
+			account = msg.getAccountNumber();
 			return msg;
 		}else{
 			return errorMessage();
@@ -287,16 +277,17 @@ public class Service implements Runnable {
 	}
 
 	private Message logout(Message msg) {
+		System.out.println("[MSG] Logout: "+account);
 		account = "";
 		return msg;
 	}
 	
 	private boolean checkPass(Message msg){
 		Connection conn = DBConn.getConn();
-		System.out.println("[MSG] Trying login: ");
+		System.out.println("[MSG] Trying login: "+msg.getAccountNumber()+" "+msg.getPassword());
 		
 		String sql = "select password from accounts where sn='"+msg.getAccountNumber()+"';";
-		System.out.println("  sql: "+sql);
+		//System.out.println("  sql: "+sql);
 		try {
 			ResultSet rs = conn.createStatement().executeQuery(sql);
 			if(rs.next()){
@@ -324,12 +315,12 @@ public class Service implements Runnable {
 		return false;
 	}
 	
-	private boolean isThisServer(String sn){
+	private static boolean isThisServer(String sn){
 		String targetBank = sn.substring(0, 4);
 		String targetBranch = sn.substring(4,8);
 		
-		System.out.println("  this:"+Cfg.getBankCode()+Cfg.getBranchCode()+
-				           "  target:"+targetBank+targetBranch);
+		//System.out.println("  this:"+Cfg.getBankCode()+Cfg.getBranchCode()+
+		//		           "  target:"+targetBank+targetBranch);
 		if(targetBank.equals(Cfg.getBankCode()) &&
 		   targetBranch.equals(Cfg.getBranchCode()))
 			return true;
@@ -342,7 +333,7 @@ public class Service implements Runnable {
 		String sn = msg.getAccountNumber();
 		String targetBank = sn.substring(0, 4);
 		String targetBranch = sn.substring(4,8);
-		System.out.println("[MSG] targetBank: "+targetBank+" targetBranch: "+targetBranch);
+		System.out.println("[MSG] Redirecting --> targetBank: "+targetBank+" targetBranch: "+targetBranch);
 		String addr = (String) ((JSONObject)servers.get(targetBank)).get(targetBranch);
 		try {
 			@SuppressWarnings("resource")
@@ -380,6 +371,14 @@ public class Service implements Runnable {
 	
 	private Message errorMessage(){
 		return new Message(System.currentTimeMillis(), "*", "*", Message.ERROR_NO, 0,"*");
+	}
+	
+	private static boolean isLegal(String account){
+		String pattern = "^[0-9]{16}$";
+		if(!Pattern.matches(pattern, account))
+			return false;
+		else
+			return true;
 	}
 
 }

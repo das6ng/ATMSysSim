@@ -8,10 +8,9 @@ import java.util.ArrayList;
 public class Server {
 
 	public static void main(String[] args) {
-		System.out.println("code: "+Cfg.getBankCode()+"\n"+
-				"name: "+Cfg.getBankName());
-		//System.out.println("Servers: "+Cfg.getServerList().toJSONString());
-		
+		System.out.println("[MSG] Current Server: "+Cfg.getBankCode()+"-"+
+				Cfg.getBranchCode()+" "+Cfg.getBankName()+Cfg.getBranchName());
+		System.out.println("Service strating...");
 		serve();
 	}
 	
@@ -41,7 +40,7 @@ public class Server {
 				Thread t = new Thread(new Service(socket));
 				ser.add(t);
 				t.start();
-				System.out.println("  new thread: "+t.getId());
+				//System.out.println("  new thread: "+t.getId());
 				socket = null;
 			}
 		}
